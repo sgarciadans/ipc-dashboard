@@ -1,0 +1,40 @@
+name: Actualizar datos IPC
+
+on:
+  schedule:
+    # Todos los días a las 13:00 UTC (10:00 AM Argentina / ART)
+    - cron: "0 13 * * *"
+  workflow_dispatch: # permite disparar manualmente desde GitHub
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # necesario para hacer commit del ipc.json actualizado
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install requests
+
+      - name: Fetchear datos INDEC
+        run: python scripts/fetch_indec.py
+
+      - name: Commit y push si hay cambios
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ipc.json
+          if git diff --cached --quiet; then
+            echo "Sin cambios nuevos en los datos."
+          else
+            git commit -m "data: actualizar IPC INDEC $(date -u +%Y-%m-%d)"
+            git push
+          fi

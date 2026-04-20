@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard IPC INDEC · Argentina</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #0066CC; --accent: #75AADB;
+            --bg: #0F1117; --surface: #1A1D27; --surface2: #242736;
+            --border: #2D3148; --text: #E8EAF6; --muted: #8B9DC3;
+            --danger: #E76F51; --success: #4CAF82; --warn: #F4A261;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        header {
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 14px 24px; display: flex; align-items: center; gap: 14px;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .flag { display: flex; flex-direction: column; width: 38px; height: 26px; border-radius: 3px; overflow: hidden; border: 1px solid #333; }
+        .flag-b { background: #74ACDF; flex: 1; }
+        .flag-w { background: #FFF; flex: 1; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #F6B40E; }
+        h1 { font-size: 18px; font-weight: 700; }
+        h1 em { color: var(--accent); font-style: normal; }
+        .header-sub { font-size: 11px; color: var(--muted); }
+        .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+        #last-update { font-size: 11px; color: var(--muted); }
+
+        .time-filter { display: flex; background: var(--surface2); border-radius: 6px; padding: 3px; gap: 2px; }
+        .time-btn { padding: 4px 12px; border: none; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; transition: all .2s; letter-spacing: .3px; }
+        .time-btn.active { background: var(--primary); color: #fff; }
+        .time-btn:hover:not(.active) { background: var(--border); color: var(--text); }
+
+        nav { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; padding: 0 20px; gap: 2px; }
+        .tab-btn { padding: 13px 18px; border: none; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 500; transition: all .2s; white-space: nowrap; }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-btn:hover:not(.active) { color: var(--text); }
+
+        main { padding: 20px 24px 40px; max-width: 1440px; margin: 0 auto; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; border-left: 3px solid var(--border); }
+        .kpi-card.blue { border-left-color: var(--accent); } .kpi-card.red { border-left-color: var(--danger); }
+        .kpi-card.green { border-left-color: var(--success); } .kpi-card.warn { border-left-color: var(--warn); }
+        .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 8px; }
+        .kpi-val { font-size: 28px; font-weight: 800; line-height: 1; }
+        .kpi-val.blue { color: var(--accent); } .kpi-val.red { color: var(--danger); }
+        .kpi-val.green { color: var(--success); } .kpi-val.warn { color: var(--warn); }
+        .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .chart-grid.cols-1 { grid-template-columns: 1fr; }
+        @media (max-width: 860px) { .chart-grid { grid-template-columns: 1fr; } }
+        .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+        .chart-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 14px; }
+        .chart-wrap { position: relative; }
+        .chart-wrap.h280 { height: 280px; } .chart-wrap.h320 { height: 320px; } .chart-wrap.h360 { height: 360px; }
+
+        .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+        .table-title { padding: 14px 18px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); border-bottom: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { padding: 9px 14px; background: var(--surface2); color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; text-align: left; border-bottom: 1px solid var(--border); }
+        th.num, td.num { text-align: right; }
+        td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--surface2); }
+        .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
+        .pill { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+        .pill.up { background: rgba(231,111,81,.15); color: var(--danger); }
+        .pill.down { background: rgba(76,175,130,.15); color: var(--success); }
+
+        .loading { display: flex; align-items: center; justify-content: center; height: 200px; gap: 10px; color: var(--muted); font-size: 13px; }
+        .spin { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .err-box { background: rgba(231,111,81,.08); border: 1px solid rgba(231,111,81,.25); border-radius: 8px; padding: 16px; color: var(--danger); font-size: 13px; line-height: 1.6; }
+
+        .badge-updated { display: inline-flex; align-items: center; gap: 6px; background: rgba(76,175,130,.12); border: 1px solid rgba(76,175,130,.25); color: var(--success); border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 600; }
+
+        footer { text-align: center; padding: 20px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); margin-top: 20px; }
+        footer a { color: var(--accent); text-decoration: none; }
+        code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 11px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="flag"><div class="flag-b"></div><div class="flag-w">☀</div><div class="flag-b"></div></div>
+    <div>
+        <h1>IPC Argentina · <em>INDEC</em></h1>
+        <div class="header-sub">Índice de Precios al Consumidor · Base dic 2016 = 100</div>
+    </div>
+    <div class="header-right">
+        <div class="time-filter">
+            <button class="time-btn" data-m="12">1A</button>
+            <button class="time-btn" data-m="24">2A</button>
+            <button class="time-btn active" data-m="60">5A</button>
+            <button class="time-btn" data-m="0">Todo</button>
+        </div>
+        <span id="last-update"><div class="spin" style="display:inline-block"></div></span>
+    </div>
+</header>
+
+<nav>
+    <button class="tab-btn active" data-tab="resumen">📊 Resumen</button>
+    <button class="tab-btn" data-tab="capitulos">🏷️ Capítulos</button>
+    <button class="tab-btn" data-tab="regiones">🗺️ Regiones</button>
+    <button class="tab-btn" data-tab="categorias">📂 Categorías</button>
+</nav>
+
+<main>
+    <!-- TAB RESUMEN -->
+    <div id="tab-resumen" class="tab-panel active">
+        <div class="kpi-grid" id="kpis"><div class="loading"><div class="spin"></div> Cargando datos…</div></div>
+        <div class="chart-grid cols-1">
+            <div class="chart-card">
+                <div class="chart-label">Índice Nivel General Nacional — Evolución (Base dic 2016 = 100)</div>
+                <div class="chart-wrap h320"><canvas id="c-ng-idx"></canvas></div>
+            </div>
+        </div>
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="chart-label">Variación Mensual (%)</div>
+                <div class="chart-wrap h280"><canvas id="c-ng-mes"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-label">Variación Interanual (%)</div>
+                <div class="chart-wrap h280"><canvas id="c-ng-anual"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB CAPÍTULOS -->
+    <div id="tab-capitulos" class="tab-panel">
+        <div class="chart-grid cols-1">
+            <div class="chart-card">
+                <div class="chart-label">Variación Mensual Último Período — por División (%)</div>
+                <div class="chart-wrap h360"><canvas id="c-cap-bar"></canvas></div>
+            </div>
+        </div>
+        <div class="chart-grid cols-1">
+            <div class="chart-card">
+                <div class="chart-label">Evolución del Índice por División</div>
+                <div class="chart-wrap h360"><canvas id="c-cap-idx"></canvas></div>
+            </div>
+        </div>
+        <div class="table-card">
+            <div class="table-title">Detalle — Último período disponible</div>
+            <table id="t-cap"></table>
+        </div>
+    </div>
+
+    <!-- TAB REGIONES -->
+    <div id="tab-regiones" class="tab-panel">
+        <div class="chart-grid cols-1">
+            <div class="chart-card">
+                <div class="chart-label">IPC Nivel General por Región — Evolución del Índice</div>
+                <div class="chart-wrap h360"><canvas id="c-reg-idx"></canvas></div>
+            </div>
+        </div>
+        <div class="chart-grid cols-1">
+            <div class="chart-card">
+                <div class="chart-label">Variación Mensual por Región — Últimos 18 meses (%)</div>
+                <div class="chart-wrap h320"><canvas id="c-reg-mes"></canvas></div>
+            </div>
+        </div>
+        <div class="table-card">
+            <div class="table-title">Comparativa Regional — Último período disponible</div>
+            <table id="t-reg"></table>
+        </div>
+    </div>
+
+    <!-- TAB CATEGORÍAS -->
+    <div id="tab-categorias" class="tab-panel">
+        <div class="chart-grid cols-1">
+            <div class="chart-card">
+                <div class="chart-label">Núcleo · Estacionales · Regulados vs Nivel General — Índice</div>
+                <div class="chart-wrap h360"><canvas id="c-cat-idx"></canvas></div>
+            </div>
+        </div>
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="chart-label">Variación Mensual por Categoría (%)</div>
+                <div class="chart-wrap h280"><canvas id="c-cat-mes"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-label">Variación Interanual por Categoría (%)</div>
+                <div class="chart-wrap h280"><canvas id="c-cat-anual"></canvas></div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    Datos: <a href="https://www.indec.gob.ar" target="_blank">INDEC</a> vía
+    <a href="https://apis.datos.gob.ar" target="_blank">API de Series de Tiempo — datos.gob.ar</a> ·
+    Actualización automática diaria vía GitHub Actions
+</footer>
+
+<script>
+/* ═══════════════════════ METADATOS ═══════════════════════ */
+const CAP = [
+    { k:0,  l:'Alimentos y Bebidas',          c:'#FF6B6B' },
+    { k:1,  l:'Bebidas Alcohólicas y Tabaco', c:'#FF9F43' },
+    { k:2,  l:'Prendas de Vestir y Calzado',  c:'#FECA57' },
+    { k:3,  l:'Vivienda y Combustibles',      c:'#48DBFB' },
+    { k:4,  l:'Equipamiento del Hogar',       c:'#FF9FF3' },
+    { k:5,  l:'Salud',                        c:'#54A0FF' },
+    { k:6,  l:'Transporte',                   c:'#A29BFE' },
+    { k:7,  l:'Comunicaciones',               c:'#00D2D3' },
+    { k:8,  l:'Recreación y Cultura',         c:'#1DD1A1' },
+    { k:9,  l:'Educación',                    c:'#C8D6E5' },
+    { k:10, l:'Restaurantes y Hoteles',       c:'#FFC312' },
+    { k:11, l:'Bienes y Servicios Varios',    c:'#A3CB38' },
+];
+const REG = [
+    { k:0, l:'Nacional',   c:'#75AADB', w:3   },
+    { k:1, l:'GBA',        c:'#FF6B6B', w:1.5 },
+    { k:2, l:'Pampeana',   c:'#FFA726', w:1.5 },
+    { k:3, l:'NEA',        c:'#66BB6A', w:1.5 },
+    { k:4, l:'NOA',        c:'#AB47BC', w:1.5 },
+    { k:5, l:'Cuyo',       c:'#29B6F6', w:1.5 },
+    { k:6, l:'Patagonia',  c:'#EF5350', w:1.5 },
+];
+const CAT = [
+    { k:0, l:'Nivel General', c:'#75AADB', w:3   },
+    { k:1, l:'Núcleo (Core)', c:'#FF6B6B', w:1.5 },
+    { k:2, l:'Estacionales',  c:'#FECA57', w:1.5 },
+    { k:3, l:'Regulados',     c:'#54A0FF', w:1.5 },
+];
+
+/* ═══════════════════════ ESTADO ═══════════════════════ */
+let filterM = 60, db = null, charts = {};
+
+/* ═══════════════════════ UTILS ═══════════════════════ */
+const MES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const fmt  = s => { const [y,m] = s.split('-'); return `${MES[+m-1]} ${y}`; };
+const last = a => a[a.length - 1];
+
+function varMes(arr) {
+    return arr.map((v,i) => i===0||arr[i-1]==null ? null : +((v/arr[i-1]-1)*100).toFixed(2));
+}
+function varAnual(arr) {
+    return arr.map((v,i) => i<12||arr[i-12]==null ? null : +((v/arr[i-12]-1)*100).toFixed(2));
+}
+function slice(dates, arrs, m) {
+    if (!m) return { d: dates, a: arrs };
+    const cut = new Date(); cut.setMonth(cut.getMonth() - m);
+    let i = dates.findIndex(d => new Date(d+'-01') >= cut);
+    if (i < 0) i = 0;
+    return { d: dates.slice(i), a: arrs.map(a => a.slice(i)) };
+}
+function pill(v) {
+    if (v == null) return '–';
+    return `<span class="pill ${v>=0?'up':'down'}">${v>=0?'+':''}${v.toFixed(1)}%</span>`;
+}
+function acum(dates, vals) {
+    const yr = new Date(last(dates)+'-01').getFullYear();
+    const i  = dates.findIndex(d => d === `${yr-1}-12`);
+    return i < 0 ? null : +((last(vals)/vals[i]-1)*100).toFixed(1);
+}
+
+/* ═══════════════════════ CHARTS ═══════════════════════ */
+Chart.defaults.color = '#8B9DC3';
+Chart.defaults.borderColor = '#2D3148';
+
+function baseOpts(extra = {}) {
+    return {
+        responsive: true, maintainAspectRatio: false, animation: { duration: 350 },
+        plugins: {
+            legend: { labels: { color:'#8B9DC3', boxWidth:10, font:{size:10}, padding:12 } },
+            tooltip: { backgroundColor:'#1A1D27', borderColor:'#2D3148', borderWidth:1, titleColor:'#E8EAF6', bodyColor:'#8B9DC3', padding:10 }
+        },
+        scales: {
+            x: { grid:{color:'#1A1E2E'}, ticks:{color:'#8B9DC3',font:{size:10},maxRotation:45} },
+            y: { grid:{color:'#1A1E2E'}, ticks:{color:'#8B9DC3',font:{size:10}} }
+        }, ...extra
+    };
+}
+function mkChart(id, type, data, opts) {
+    if (charts[id]) { charts[id].destroy(); }
+    charts[id] = new Chart(document.getElementById(id), { type, data, options: opts });
+}
+
+/* ═══════════════════════ CARGA DE DATOS ═══════════════════════ */
+async function loadData() {
+    // Primero intenta JSON local (GitHub Pages / servidor local)
+    try {
+        const r = await fetch('./data/ipc.json');
+        if (r.ok) {
+            const json = await r.json();
+            if (json.resumen?.dates?.length > 0) return json;
+        }
+    } catch(_) {}
+
+    // Fallback: API pública de datos.gob.ar
+    const API = 'https://apis.datos.gob.ar/series/api/series/';
+    const GROUPS = {
+        regiones:  '145.3_INGNACNAL_DICI_M_15,145.3_INGGBAGBA_DICI_M_10,145.3_INGPAMANA_DICI_M_15,145.3_INGNEANEA_DICI_M_10,145.3_INGNOANOA_DICI_M_10,145.3_INGCUYUYO_DICI_M_11,145.3_INGPATNIA_DICI_M_16',
+        capitulos: '146.3_IALIMENNAL_DICI_M_45,146.3_IBEBIDANAL_DICI_M_39,146.3_IPRENDANAL_DICI_M_35,146.3_IVIVIENNAL_DICI_M_52,146.3_IEQUIPANAL_DICI_M_46,146.3_ISALUDNAL_DICI_M_18,146.3_ITRANSPNAL_DICI_M_23,146.3_ICOMUNINAL_DICI_M_27,146.3_IRECREANAL_DICI_M_31,146.3_IEDUCACNAL_DICI_M_22,146.3_IRESTAUNAL_DICI_M_33,146.3_IBIENESNAL_DICI_M_36',
+        categorias:'148.3_INIVELNAL_DICI_M_26,148.3_INUCLEONAL_DICI_M_19,148.3_IESTACINAL_DICI_M_25,148.3_IREGULANAL_DICI_M_22',
+    };
+
+    async function apiFetch(ids) {
+        const url = `${API}?ids=${ids}&format=json&limit=300`;
+        const proxies = [url,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            `https://corsproxy.io/?${encodeURIComponent(url)}`];
+        for (const p of proxies) {
+            try { const r = await fetch(p); if (r.ok) { const j = await r.json(); if (j.data) return j; } } catch(_) {}
+        }
+        throw new Error('No se pudo conectar con la API de INDEC.');
+    }
+
+    const [regR, capR, catR] = await Promise.all([
+        apiFetch(GROUPS.regiones), apiFetch(GROUPS.capitulos), apiFetch(GROUPS.categorias)
+    ]);
+    const mkGroup = (json, n) => ({
+        dates:  json.data.map(r => r[0]),
+        values: Array.from({length:n}, (_,i) => json.data.map(r => r[i+1]))
+    });
+    const regData = mkGroup(regR, 7);
+    return {
+        updated_at: new Date().toISOString(),
+        resumen:   { dates: regData.dates, values: regData.values[0] },
+        regiones:  regData,
+        capitulos: mkGroup(capR, 12),
+        categorias:mkGroup(catR, 4),
+    };
+}
+
+/* ═══════════════════════ RENDER RESUMEN ═══════════════════════ */
+function renderResumen() {
+    const { dates, values: vals } = db.resumen;
+    const vm = varMes(vals), va = varAnual(vals), lastI = vals.length - 1;
+    const ac = acum(dates, vals);
+
+    document.getElementById('kpis').innerHTML = `
+        <div class="kpi-card blue"><div class="kpi-label">Índice Nivel General</div>
+            <div class="kpi-val blue">${vals[lastI]?.toFixed(1)??'–'}</div>
+            <div class="kpi-sub">Base dic 2016 = 100 · ${fmt(dates[lastI])}</div></div>
+        <div class="kpi-card red"><div class="kpi-label">Var. Mensual</div>
+            <div class="kpi-val red">${vm[lastI]!=null?vm[lastI].toFixed(1)+'%':'–'}</div>
+            <div class="kpi-sub">vs mes anterior</div></div>
+        <div class="kpi-card warn"><div class="kpi-label">Var. Interanual</div>
+            <div class="kpi-val warn">${va[lastI]!=null?va[lastI].toFixed(1)+'%':'–'}</div>
+            <div class="kpi-sub">vs mismo mes año anterior</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Acumulado año en curso</div>
+            <div class="kpi-val green">${ac!=null?ac+'%':'–'}</div>
+            <div class="kpi-sub">desde dic del año anterior</div></div>`;
+
+    const upd = db.updated_at.startsWith('placeholder')
+        ? 'Sin datos aún — ejecutá el workflow'
+        : `<span class="badge-updated">🟢 Actualizado ${db.updated_at.slice(0,10)}</span>`;
+    document.getElementById('last-update').innerHTML = upd;
+
+    const { d, a } = slice(dates, [vals, vm, va], filterM);
+    const lbl = d.map(fmt);
+
+    mkChart('c-ng-idx','line',{ labels:lbl, datasets:[{
+        label:'IPC Nivel General Nacional', data:a[0],
+        borderColor:'#75AADB', backgroundColor:'rgba(117,170,219,.07)',
+        borderWidth:2, pointRadius:0, tension:.15, fill:true }]}, baseOpts());
+
+    mkChart('c-ng-mes','bar',{ labels:lbl, datasets:[{
+        label:'Var. Mensual %', data:a[1],
+        backgroundColor:a[1].map(v=>v==null?'transparent':v>0?'rgba(231,111,81,.75)':'rgba(76,175,130,.75)'),
+        borderRadius:2 }]},
+        {...baseOpts(), plugins:{...baseOpts().plugins, legend:{display:false}}});
+
+    mkChart('c-ng-anual','line',{ labels:lbl, datasets:[{
+        label:'Var. Interanual %', data:a[2],
+        borderColor:'#FF6B6B', backgroundColor:'rgba(255,107,107,.07)',
+        borderWidth:2, pointRadius:0, tension:.15, fill:true }]}, baseOpts());
+}
+
+/* ═══════════════════════ RENDER CAPÍTULOS ═══════════════════════ */
+function renderCapitulos() {
+    const { dates, values: vArr } = db.capitulos;
+    const vmArr = vArr.map(varMes), vaArr = vArr.map(varAnual);
+    const lastI = vArr[0].length - 1;
+
+    const sorted = CAP.map((c,i) => ({...c, v:vmArr[i][lastI]})).sort((a,b)=>(b.v??-999)-(a.v??-999));
+    mkChart('c-cap-bar','bar',{
+        labels:sorted.map(x=>x.l),
+        datasets:[{ label:'Var. Mensual %', data:sorted.map(x=>x.v),
+            backgroundColor:sorted.map(x=>x.c+'CC'), borderColor:sorted.map(x=>x.c),
+            borderWidth:1, borderRadius:3 }]},
+        { ...baseOpts({indexAxis:'y'}), plugins:{...baseOpts().plugins,legend:{display:false}},
+          scales:{x:{grid:{color:'#1A1E2E'},ticks:{color:'#8B9DC3',font:{size:10}}},
+                  y:{grid:{color:'#1A1E2E'},ticks:{color:'#8B9DC3',font:{size:11}}}} });
+
+    const { d, a } = slice(dates, vArr, filterM);
+    mkChart('c-cap-idx','line',{
+        labels:d.map(fmt),
+        datasets:CAP.map((c,i)=>({ label:c.l, data:a[i], borderColor:c.c, borderWidth:1.5, pointRadius:0, tension:.1 }))
+    }, baseOpts());
+
+    document.getElementById('t-cap').innerHTML = `
+        <thead><tr><th>División</th><th class="num">Índice</th><th class="num">Var. Mensual</th><th class="num">Var. Interanual</th></tr></thead>
+        <tbody>${CAP.map((c,i)=>`<tr>
+            <td><span class="dot" style="background:${c.c}"></span>${c.l}</td>
+            <td class="num" style="font-weight:600">${vArr[i][lastI]?.toFixed(1)??'–'}</td>
+            <td class="num">${pill(vmArr[i][lastI])}</td>
+            <td class="num">${pill(vaArr[i][lastI])}</td>
+        </tr>`).join('')}</tbody>`;
+}
+
+/* ═══════════════════════ RENDER REGIONES ═══════════════════════ */
+function renderRegiones() {
+    const { dates, values: vArr } = db.regiones;
+    const vmArr = vArr.map(varMes), vaArr = vArr.map(varAnual);
+    const lastI = vArr[0].length - 1;
+
+    const { d, a } = slice(dates, vArr, filterM);
+    mkChart('c-reg-idx','line',{
+        labels:d.map(fmt),
+        datasets:REG.map((r,i)=>({ label:r.l, data:a[i], borderColor:r.c, borderWidth:r.w, pointRadius:0, tension:.1 }))
+    }, baseOpts());
+
+    const n18 = Math.min(18, dates.length);
+    mkChart('c-reg-mes','line',{
+        labels:dates.slice(-n18).map(fmt),
+        datasets:REG.map((r,i)=>({ label:r.l, data:vmArr[i].slice(-n18), borderColor:r.c, borderWidth:r.w, pointRadius:2, tension:.3 }))
+    }, baseOpts());
+
+    document.getElementById('t-reg').innerHTML = `
+        <thead><tr><th>Región</th><th class="num">Índice</th><th class="num">Var. Mensual</th><th class="num">Var. Interanual</th></tr></thead>
+        <tbody>${REG.map((r,i)=>`<tr>
+            <td><span class="dot" style="background:${r.c}"></span><strong>${r.l}</strong></td>
+            <td class="num" style="font-weight:600">${vArr[i][lastI]?.toFixed(1)??'–'}</td>
+            <td class="num">${pill(vmArr[i][lastI])}</td>
+            <td class="num">${pill(vaArr[i][lastI])}</td>
+        </tr>`).join('')}</tbody>`;
+}
+
+/* ═══════════════════════ RENDER CATEGORÍAS ═══════════════════════ */
+function renderCategorias() {
+    const { dates, values: vArr } = db.categorias;
+    const vmArr = vArr.map(varMes), vaArr = vArr.map(varAnual);
+
+    const { d, a } = slice(dates, vArr, filterM);
+    const { d:dm, a:am } = slice(dates, vmArr, filterM);
+    const { d:da, a:aa } = slice(dates, vaArr, filterM);
+
+    mkChart('c-cat-idx','line',{
+        labels:d.map(fmt),
+        datasets:CAT.map((c,i)=>({ label:c.l, data:a[i], borderColor:c.c, borderWidth:c.w, pointRadius:0, tension:.1 }))
+    }, baseOpts());
+    mkChart('c-cat-mes','line',{
+        labels:dm.map(fmt),
+        datasets:CAT.map((c,i)=>({ label:c.l, data:am[i], borderColor:c.c, borderWidth:c.w, pointRadius:0, tension:.2 }))
+    }, baseOpts());
+    mkChart('c-cat-anual','line',{
+        labels:da.map(fmt),
+        datasets:CAT.map((c,i)=>({ label:c.l, data:aa[i], borderColor:c.c, borderWidth:c.w, pointRadius:0, tension:.15 }))
+    }, baseOpts());
+}
+
+/* ═══════════════════════ RE-RENDER ═══════════════════════ */
+function rerender() {
+    if (!db) return;
+    renderResumen();
+    if (document.getElementById('tab-capitulos').classList.contains('active')) renderCapitulos();
+    if (document.getElementById('tab-regiones').classList.contains('active'))  renderRegiones();
+    if (document.getElementById('tab-categorias').classList.contains('active'))renderCategorias();
+}
+
+/* ═══════════════════════ EVENTOS ═══════════════════════ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+        rerender();
+    });
+});
+document.querySelectorAll('.time-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filterM = parseInt(btn.dataset.m) || 0;
+        rerender();
+    });
+});
+
+/* ═══════════════════════ INIT ═══════════════════════ */
+(async () => {
+    try {
+        db = await loadData();
+        renderResumen();
+    } catch(e) {
+        document.getElementById('kpis').innerHTML =
+            `<div class="err-box">❌ <strong>Error cargando datos</strong><br>${e.message}</div>`;
+        document.getElementById('last-update').textContent = 'Error';
+    }
+})();
+</script>
+</body>
+</html>
