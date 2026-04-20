@@ -487,7 +487,7 @@ document.querySelectorAll('.time-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        filterM = parseInt(btn.dataset.m) || 0;
+        filterM = Number(btn.dataset.m);
         rerender();
     });
 });
