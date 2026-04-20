@@ -464,10 +464,13 @@ function renderCategorias() {
 /* ═══════════════════════ RE-RENDER ═══════════════════════ */
 function rerender() {
     if (!db) return;
-    renderResumen();
-    if (document.getElementById('tab-capitulos').classList.contains('active')) renderCapitulos();
-    if (document.getElementById('tab-regiones').classList.contains('active'))  renderRegiones();
-    if (document.getElementById('tab-categorias').classList.contains('active'))renderCategorias();
+    const active = document.querySelector('.tab-panel.active');
+    if (!active) return;
+    const id = active.id;
+    if (id === 'tab-resumen')    renderResumen();
+    if (id === 'tab-capitulos')  renderCapitulos();
+    if (id === 'tab-regiones')   renderRegiones();
+    if (id === 'tab-categorias') renderCategorias();
 }
 
 /* ═══════════════════════ EVENTOS ═══════════════════════ */
