@@ -249,8 +249,12 @@ function varAnual(arr) {
 }
 function slice(dates, arrs, m) {
     if (!m) return { d: dates, a: arrs };
-    const cut = new Date(); cut.setMonth(cut.getMonth() - m);
-    let i = dates.findIndex(d => new Date(d+'-01') >= cut);
+    const now = new Date();
+    let y = now.getFullYear();
+    let mo = now.getMonth() + 1 - m;
+    while (mo <= 0) { mo += 12; y -= 1; }
+    const cutStr = `${y}-${String(mo).padStart(2,'0')}`;
+    let i = dates.findIndex(d => d >= cutStr);
     if (i < 0) i = 0;
     return { d: dates.slice(i), a: arrs.map(a => a.slice(i)) };
 }
