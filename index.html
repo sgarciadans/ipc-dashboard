@@ -109,19 +109,12 @@
     <button class="tab-btn active" data-tab="resumen">📊 Resumen</button>
     <button class="tab-btn" data-tab="capitulos">🏷️ Capítulos</button>
     <button class="tab-btn" data-tab="regiones">🗺️ Regiones</button>
-    <button class="tab-btn" data-tab="categorias">📂 Categorías</button>
 </nav>
 
 <main>
     <!-- TAB RESUMEN -->
     <div id="tab-resumen" class="tab-panel active">
         <div class="kpi-grid" id="kpis"><div class="loading"><div class="spin"></div> Cargando datos…</div></div>
-        <div class="chart-grid cols-1">
-            <div class="chart-card">
-                <div class="chart-label">Índice Nivel General Nacional — Evolución (Base dic 2016 = 100)</div>
-                <div class="chart-wrap h320"><canvas id="c-ng-idx"></canvas></div>
-            </div>
-        </div>
         <div class="chart-grid">
             <div class="chart-card">
                 <div class="chart-label">Variación Mensual (%)</div>
@@ -130,6 +123,22 @@
             <div class="chart-card">
                 <div class="chart-label">Variación Interanual (%)</div>
                 <div class="chart-wrap h280"><canvas id="c-ng-anual"></canvas></div>
+            </div>
+        </div>
+        <div class="chart-grid cols-1">
+            <div class="chart-card">
+                <div class="chart-label">Núcleo · Estacionales · Regulados vs Nivel General — Índice</div>
+                <div class="chart-wrap h360"><canvas id="c-cat-idx"></canvas></div>
+            </div>
+        </div>
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="chart-label">Variación Mensual por Categoría (%)</div>
+                <div class="chart-wrap h280"><canvas id="c-cat-mes"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-label">Variación Interanual por Categoría (%)</div>
+                <div class="chart-wrap h280"><canvas id="c-cat-anual"></canvas></div>
             </div>
         </div>
     </div>
@@ -171,26 +180,6 @@
         <div class="table-card">
             <div class="table-title">Comparativa Regional — Último período disponible</div>
             <table id="t-reg"></table>
-        </div>
-    </div>
-
-    <!-- TAB CATEGORÍAS -->
-    <div id="tab-categorias" class="tab-panel">
-        <div class="chart-grid cols-1">
-            <div class="chart-card">
-                <div class="chart-label">Núcleo · Estacionales · Regulados vs Nivel General — Índice</div>
-                <div class="chart-wrap h360"><canvas id="c-cat-idx"></canvas></div>
-            </div>
-        </div>
-        <div class="chart-grid">
-            <div class="chart-card">
-                <div class="chart-label">Variación Mensual por Categoría (%)</div>
-                <div class="chart-wrap h280"><canvas id="c-cat-mes"></canvas></div>
-            </div>
-            <div class="chart-card">
-                <div class="chart-label">Variación Interanual por Categoría (%)</div>
-                <div class="chart-wrap h280"><canvas id="c-cat-anual"></canvas></div>
-            </div>
         </div>
     </div>
 </main>
@@ -365,11 +354,6 @@ function renderResumen() {
     const { d, a } = slice(dates, [vals, vm, va], filterM);
     const lbl = d.map(fmt);
 
-    mkChart('c-ng-idx','line',{ labels:lbl, datasets:[{
-        label:'IPC Nivel General Nacional', data:a[0],
-        borderColor:'#75AADB', backgroundColor:'rgba(117,170,219,.07)',
-        borderWidth:2, pointRadius:0, tension:.15, fill:true }]}, baseOpts());
-
     mkChart('c-ng-mes','bar',{ labels:lbl, datasets:[{
         label:'Var. Mensual %', data:a[1],
         backgroundColor:a[1].map(v=>v==null?'transparent':v>0?'rgba(231,111,81,.75)':'rgba(76,175,130,.75)'),
@@ -380,6 +364,8 @@ function renderResumen() {
         label:'Var. Interanual %', data:a[2],
         borderColor:'#FF6B6B', backgroundColor:'rgba(255,107,107,.07)',
         borderWidth:2, pointRadius:0, tension:.15, fill:true }]}, baseOpts());
+
+    renderCategorias();
 }
 
 /* ═══════════════════════ RENDER CAPÍTULOS ═══════════════════════ */
@@ -471,10 +457,9 @@ function rerender() {
     const active = document.querySelector('.tab-panel.active');
     if (!active) return;
     const id = active.id;
-    if (id === 'tab-resumen')    renderResumen();
-    if (id === 'tab-capitulos')  renderCapitulos();
-    if (id === 'tab-regiones')   renderRegiones();
-    if (id === 'tab-categorias') renderCategorias();
+    if (id === 'tab-resumen')   renderResumen();
+    if (id === 'tab-capitulos') renderCapitulos();
+    if (id === 'tab-regiones')  renderRegiones();
 }
 
 /* ═══════════════════════ EVENTOS ═══════════════════════ */
